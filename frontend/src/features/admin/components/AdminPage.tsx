@@ -2,8 +2,11 @@ import { useState } from 'react';
 import Header from '../../../shared/components/layout/Header';
 import RolesTab from './RolesTab';
 import PermissionsTab from './PermissionsTab';
+import TimeOffTypesTab from './TimeOffTypesTab';
+import DepartmentsTab from './DepartmentsTab';
+import PositionsTab from './PositionsTab';
 
-type Tab = 'roles' | 'permissions';
+type Tab = 'roles' | 'permissions' | 'timeoff' | 'departments' | 'positions';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('roles');
@@ -11,6 +14,9 @@ export default function AdminPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'roles', label: 'Roles' },
     { key: 'permissions', label: 'Permissions' },
+    { key: 'timeoff', label: 'Time Off Types' },
+    { key: 'departments', label: 'Departments' },
+    { key: 'positions', label: 'Positions' },
   ];
 
   return (
@@ -38,6 +44,9 @@ export default function AdminPage() {
 
         {activeTab === 'roles' && <RolesTab />}
         {activeTab === 'permissions' && <PermissionsTab />}
+        {activeTab === 'timeoff' && <TimeOffTypesTab />}
+        {activeTab === 'departments' && <DepartmentsTab />}
+        {activeTab === 'positions' && <PositionsTab />}
       </div>
     </>
   );

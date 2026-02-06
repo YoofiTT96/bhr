@@ -1,6 +1,7 @@
 package com.turntabl.bonarda.domain.employee.model;
 
 import com.turntabl.bonarda.domain.common.model.AuditableEntity;
+import com.turntabl.bonarda.domain.organization.model.Department;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -77,6 +78,11 @@ public class Employee extends AuditableEntity {
     // Microsoft integration
     @Column(name = "microsoft_user_id", unique = true, length = 255)
     private String microsoftUserId;
+
+    // Department
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
     /**
      * Calculate tenure (time spent in company)

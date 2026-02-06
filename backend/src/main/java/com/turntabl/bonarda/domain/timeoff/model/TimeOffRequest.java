@@ -68,6 +68,18 @@ public class TimeOffRequest extends AuditableEntity {
     @Column(name = "calendar_event_id", length = 255)
     private String calendarEventId;
 
+    @Column(name = "attachment_file_name", length = 500)
+    private String attachmentFileName;
+
+    @Column(name = "attachment_file_path", length = 1000)
+    private String attachmentFilePath;
+
+    @Column(name = "attachment_content_type", length = 255)
+    private String attachmentContentType;
+
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+
     @PrePersist
     protected void ensurePublicId() {
         if (publicId == null) {

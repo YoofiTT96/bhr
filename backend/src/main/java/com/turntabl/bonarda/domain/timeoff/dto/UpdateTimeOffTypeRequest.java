@@ -27,4 +27,9 @@ public class UpdateTimeOffTypeRequest {
     private Boolean isActive;
 
     private Boolean isUnlimited;
+
+    private String attachmentRequirement;
+
+    @Min(0)
+    private Integer attachmentRequiredAfterDays;
 }

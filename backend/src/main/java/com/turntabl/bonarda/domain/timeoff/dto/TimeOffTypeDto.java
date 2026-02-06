@@ -15,4 +15,6 @@ public class TimeOffTypeDto {
     private Boolean requiresApproval;
     private Boolean isActive;
     private Boolean isUnlimited;
+    private String attachmentRequirement;
+    private Integer attachmentRequiredAfterDays;
 }

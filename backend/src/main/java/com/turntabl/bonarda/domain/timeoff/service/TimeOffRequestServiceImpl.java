@@ -2,6 +2,7 @@ package com.turntabl.bonarda.domain.timeoff.service;
 
 import com.turntabl.bonarda.domain.common.service.EntityResolutionService;
 import com.turntabl.bonarda.domain.common.service.EnumParser;
+import com.turntabl.bonarda.domain.common.service.FileStorageService;
 import com.turntabl.bonarda.domain.employee.model.Employee;
 import com.turntabl.bonarda.domain.timeoff.dto.CreateTimeOffRequestDto;
 import com.turntabl.bonarda.domain.timeoff.dto.ReviewTimeOffRequestDto;
@@ -17,7 +18,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import java.math.BigDecimal;
+import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,6 +41,7 @@ public class TimeOffRequestServiceImpl implements TimeOffRequestService {
     private final CalendarService calendarService;
     private final EntityResolutionService entityResolution;
     private final EnumParser enumParser;
+    private final FileStorageService fileStorageService;
 
     @Override
     public TimeOffRequestDto create(UUID employeePublicId, CreateTimeOffRequestDto request) {
@@ -282,6 +287,7 @@ public class TimeOffRequestServiceImpl implements TimeOffRequestService {
     }
 
     private TimeOffRequestDto toDto(TimeOffRequest request) {
+        boolean attachmentRequired = isAttachmentRequired(request.getTimeOffType(), request.getBusinessDays());
         return TimeOffRequestDto.builder()
                 .id(request.getPublicId().toString())
                 .employeeId(request.getEmployee().getPublicId().toString())
@@ -302,6 +308,97 @@ public class TimeOffRequestServiceImpl implements TimeOffRequestService {
                 .createdAt(request.getCreatedAt())
                 .calendarEventId(request.getCalendarEventId())
                 .calendarSynced(request.getCalendarEventId() != null)
+                .attachmentFileName(request.getAttachmentFileName())
+                .attachmentSize(request.getAttachmentSize())
+                .hasAttachment(request.getAttachmentFilePath() != null)
+                .attachmentRequired(attachmentRequired)
                 .build();
+    }
+
+    private boolean isAttachmentRequired(TimeOffType type, BigDecimal businessDays) {
+        AttachmentRequirement req = type.getAttachmentRequirement();
+        if (req == AttachmentRequirement.ALWAYS) {
+            return true;
+        }
+        if (req == AttachmentRequirement.CONDITIONAL) {
+            Integer afterDays = type.getAttachmentRequiredAfterDays();
+            return afterDays != null && businessDays.compareTo(BigDecimal.valueOf(afterDays)) > 0;
+        }
+        return false;
+    }
+
+    @Override
+    public TimeOffRequestDto uploadAttachment(UUID requestPublicId, UUID employeePublicId, MultipartFile file) {
+        TimeOffRequest request = resolveRequestByPublicId(requestPublicId);
+        Employee employee = entityResolution.resolveEmployee(employeePublicId);
+
+        if (!request.getEmployee().getId().equals(employee.getId())) {
+            throw new BadRequestException("You can only upload attachments to your own requests");
+        }
+
+        if (request.getStatus() != TimeOffRequestStatus.PENDING) {
+            throw new BadRequestException("Attachments can only be added to pending requests");
+        }
+
+        // Delete existing attachment if present
+        if (request.getAttachmentFilePath() != null) {
+            fileStorageService.deleteFile(request.getAttachmentFilePath());
+        }
+
+        // Store new file
+        String filePath = fileStorageService.storeFile(file, "time-off-attachments/" + requestPublicId);
+
+        request.setAttachmentFileName(file.getOriginalFilename());
+        request.setAttachmentFilePath(filePath);
+        request.setAttachmentContentType(file.getContentType());
+        request.setAttachmentSize(file.getSize());
+
+        TimeOffRequest updated = requestRepository.save(request);
+        return toDto(updated);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Path getAttachmentPath(UUID requestPublicId, UUID callerPublicId, Set<String> callerPermissions) {
+        TimeOffRequest request = resolveRequestByPublicId(requestPublicId);
+        Employee caller = entityResolution.resolveEmployee(callerPublicId);
+
+        boolean isOwner = request.getEmployee().getId().equals(caller.getId());
+        boolean isTeamManager = request.getEmployee().getReportsTo() != null
+                && request.getEmployee().getReportsTo().getId().equals(caller.getId());
+        boolean hasReadAll = callerPermissions.contains("TIME_OFF_REQUEST_READ_ALL");
+
+        if (!isOwner && !isTeamManager && !hasReadAll) {
+            throw new BadRequestException("You do not have permission to view this attachment");
+        }
+
+        if (request.getAttachmentFilePath() == null) {
+            throw new ResourceNotFoundException("Attachment", "requestId", requestPublicId);
+        }
+
+        return fileStorageService.getFilePath(request.getAttachmentFilePath());
+    }
+
+    @Override
+    public void deleteAttachment(UUID requestPublicId, UUID employeePublicId) {
+        TimeOffRequest request = resolveRequestByPublicId(requestPublicId);
+        Employee employee = entityResolution.resolveEmployee(employeePublicId);
+
+        if (!request.getEmployee().getId().equals(employee.getId())) {
+            throw new BadRequestException("You can only delete attachments from your own requests");
+        }
+
+        if (request.getStatus() != TimeOffRequestStatus.PENDING) {
+            throw new BadRequestException("Attachments can only be deleted from pending requests");
+        }
+
+        if (request.getAttachmentFilePath() != null) {
+            fileStorageService.deleteFile(request.getAttachmentFilePath());
+            request.setAttachmentFileName(null);
+            request.setAttachmentFilePath(null);
+            request.setAttachmentContentType(null);
+            request.setAttachmentSize(null);
+            requestRepository.save(request);
+        }
     }
 }

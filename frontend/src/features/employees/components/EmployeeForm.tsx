@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft } from 'lucide-react';
 import { useEmployee, useCreateEmployee, useUpdateEmployee, useEmployees } from '../hooks/useEmployees';
+import { useActiveDepartments } from '../../admin/hooks/useOrganization';
 import Header from '../../../shared/components/layout/Header';
 
 const employeeSchema = z.object({
@@ -16,6 +17,7 @@ const employeeSchema = z.object({
   birthday: z.string().optional(),
   hireDate: z.string().min(1, 'Hire date is required'),
   reportsToId: z.string().optional().nullable(),
+  departmentId: z.string().optional().nullable(),
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -28,6 +30,7 @@ export default function EmployeeForm() {
 
   const { data: employee, isLoading: loadingEmployee } = useEmployee(employeeId);
   const { data: allEmployees } = useEmployees(0, 100);
+  const { data: departments } = useActiveDepartments();
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
 
@@ -48,6 +51,7 @@ export default function EmployeeForm() {
           birthday: employee.birthday ?? '',
           hireDate: employee.hireDate,
           reportsToId: employee.reportsToId ?? null,
+          departmentId: employee.departmentId ?? null,
         }
       : undefined,
   });
@@ -56,6 +60,7 @@ export default function EmployeeForm() {
     const payload = {
       ...data,
       reportsToId: data.reportsToId || undefined,
+      departmentId: data.departmentId || undefined,
       phoneNumber: data.phoneNumber || undefined,
       position: data.position || undefined,
       location: data.location || undefined,
@@ -119,9 +124,21 @@ export default function EmployeeForm() {
               </Field>
             </div>
 
-            <Field label="Location" error={errors.location?.message}>
-              <input {...register('location')} className={inputClass} />
-            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Location" error={errors.location?.message}>
+                <input {...register('location')} className={inputClass} />
+              </Field>
+              <Field label="Department">
+                <select {...register('departmentId')} className={inputClass}>
+                  <option value="">No department</option>
+                  {departments?.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <Field label="Birthday" error={errors.birthday?.message}>

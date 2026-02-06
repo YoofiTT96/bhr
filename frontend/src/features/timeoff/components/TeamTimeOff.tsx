@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Calendar } from 'lucide-react';
+import { Clock, Calendar, Paperclip, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../auth/context/AuthContext';
 import { useTeamTimeOffRequests } from '../hooks/useTimeOff';
 import ReviewModal from './ReviewModal';
@@ -73,15 +73,29 @@ export default function TeamTimeOff() {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{req.businessDays}</td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[req.status]}`}>
-                    {req.status}
-                  </span>
-                  {req.status === 'APPROVED' && (
-                    <span className={`inline-flex items-center gap-1 ml-2 text-xs ${req.calendarSynced ? 'text-blue-600' : 'text-gray-400'}`}>
-                      <Calendar size={12} />
-                      {req.calendarSynced ? 'Synced' : 'Not synced'}
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[req.status]}`}>
+                      {req.status}
                     </span>
-                  )}
+                    {req.status === 'APPROVED' && (
+                      <span className={`inline-flex items-center gap-1 text-xs ${req.calendarSynced ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <Calendar size={12} />
+                        {req.calendarSynced ? 'Synced' : 'Not synced'}
+                      </span>
+                    )}
+                    {req.hasAttachment && (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-600" title={req.attachmentFileName}>
+                        <Paperclip size={12} />
+                        Attached
+                      </span>
+                    )}
+                    {req.attachmentRequired && !req.hasAttachment && req.status === 'PENDING' && (
+                      <span className="inline-flex items-center gap-1 text-xs text-orange-600">
+                        <AlertCircle size={12} />
+                        Attachment needed
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   {req.status === 'PENDING' && canApprove && (

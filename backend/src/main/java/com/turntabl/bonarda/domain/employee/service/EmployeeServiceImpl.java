@@ -8,6 +8,8 @@ import com.turntabl.bonarda.domain.employee.model.SectionField;
 import com.turntabl.bonarda.domain.employee.repository.EmployeeFieldValueRepository;
 import com.turntabl.bonarda.domain.employee.repository.EmployeeRepository;
 import com.turntabl.bonarda.domain.employee.repository.SectionFieldRepository;
+import com.turntabl.bonarda.domain.organization.model.Department;
+import com.turntabl.bonarda.domain.organization.repository.DepartmentRepository;
 import com.turntabl.bonarda.exception.BadRequestException;
 import com.turntabl.bonarda.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final SectionFieldRepository sectionFieldRepository;
     private final EmployeeFieldValueRepository fieldValueRepository;
     private final EntityResolutionService entityResolution;
+    private final DepartmentRepository departmentRepository;
 
     @Override
     public EmployeeDto createEmployee(CreateEmployeeRequest request) {
@@ -56,6 +59,13 @@ public class EmployeeServiceImpl implements EmployeeService {
             employee.setReportsTo(manager);
         }
 
+        if (request.getDepartmentId() != null) {
+            UUID deptPublicId = UUID.fromString(request.getDepartmentId());
+            Department department = departmentRepository.findByPublicId(deptPublicId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", "publicId", deptPublicId));
+            employee.setDepartment(department);
+        }
+
         Employee saved = employeeRepository.save(employee);
         return toDto(saved);
     }
@@ -78,6 +88,13 @@ public class EmployeeServiceImpl implements EmployeeService {
             validateReportsTo(employee.getId(), managerPublicId);
             Employee manager = entityResolution.resolveEmployee(managerPublicId);
             employee.setReportsTo(manager);
+        }
+
+        if (request.getDepartmentId() != null) {
+            UUID deptPublicId = UUID.fromString(request.getDepartmentId());
+            Department department = departmentRepository.findByPublicId(deptPublicId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", "publicId", deptPublicId));
+            employee.setDepartment(department);
         }
 
         Employee updated = employeeRepository.save(employee);
@@ -237,6 +254,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .microsoftUserId(employee.getMicrosoftUserId())
                 .reportsToId(employee.getReportsTo() != null ? employee.getReportsTo().getPublicId().toString() : null)
                 .reportsToName(employee.getReportsTo() != null ? employee.getReportsTo().getFullName() : null)
+                .departmentId(employee.getDepartment() != null ? employee.getDepartment().getPublicId().toString() : null)
+                .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .tenure(EmployeeDto.TenureDto.builder()
                         .years(tenure.getYears())
                         .months(tenure.getMonths())

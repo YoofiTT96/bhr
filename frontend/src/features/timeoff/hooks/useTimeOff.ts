@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { timeOffService } from '../services/timeOffService';
-import type { CreateTimeOffRequest, ReviewTimeOffRequest } from '../types/timeoff.types';
+import type {
+  CreateTimeOffRequest,
+  CreateTimeOffTypeRequest,
+  UpdateTimeOffTypeRequest,
+  ReviewTimeOffRequest,
+} from '../types/timeoff.types';
 
 // --- Type hooks ---
 export function useTimeOffTypes(activeOnly = true) {
@@ -82,6 +87,60 @@ export function useCancelTimeOffRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
       queryClient.invalidateQueries({ queryKey: ['time-off-balances'] });
+    },
+  });
+}
+
+// --- Type mutation hooks ---
+export function useCreateTimeOffType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTimeOffTypeRequest) => timeOffService.createType(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-types'] });
+    },
+  });
+}
+
+export function useUpdateTimeOffType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateTimeOffTypeRequest }) =>
+      timeOffService.updateType(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-types'] });
+    },
+  });
+}
+
+export function useDeleteTimeOffType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => timeOffService.deleteType(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-types'] });
+    },
+  });
+}
+
+// --- Attachment hooks ---
+export function useUploadAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, file }: { requestId: string; file: File }) =>
+      timeOffService.uploadAttachment(requestId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
+    },
+  });
+}
+
+export function useDeleteAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (requestId: string) => timeOffService.deleteAttachment(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
     },
   });
 }

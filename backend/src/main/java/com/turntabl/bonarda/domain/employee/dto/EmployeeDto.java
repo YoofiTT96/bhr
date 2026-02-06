@@ -28,6 +28,10 @@ public class EmployeeDto {
     private String reportsToId;
     private String reportsToName;
 
+    // Department info
+    private String departmentId;
+    private String departmentName;
+
     // Computed
     private TenureDto tenure;
     private int directReportCount;

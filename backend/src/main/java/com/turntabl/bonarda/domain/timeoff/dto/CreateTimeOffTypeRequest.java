@@ -29,4 +29,9 @@ public class CreateTimeOffTypeRequest {
     private Boolean requiresApproval = true;
 
     private Boolean isUnlimited = false;
+
+    private String attachmentRequirement = "NEVER";
+
+    @Min(0)
+    private Integer attachmentRequiredAfterDays;
 }

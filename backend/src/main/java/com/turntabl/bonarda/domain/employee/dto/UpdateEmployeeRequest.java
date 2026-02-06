@@ -30,4 +30,5 @@ public class UpdateEmployeeRequest {
     private LocalDate hireDate;
     private EmployeeStatus status;
     private String reportsToId;
+    private String departmentId;
 }

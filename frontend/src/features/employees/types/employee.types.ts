@@ -20,6 +20,8 @@ export interface Employee {
   microsoftUserId?: string;
   reportsToId?: string;
   reportsToName?: string;
+  departmentId?: string;
+  departmentName?: string;
   tenure: TenureDto;
   directReportCount: number;
 }
@@ -34,6 +36,7 @@ export interface CreateEmployeeRequest {
   birthday?: string;
   hireDate: string;
   reportsToId?: string;
+  departmentId?: string;
   microsoftUserId?: string;
 }
 
@@ -47,6 +50,7 @@ export interface UpdateEmployeeRequest {
   hireDate?: string;
   status?: EmployeeStatus;
   reportsToId?: string;
+  departmentId?: string;
 }
 
 export interface EmployeeHierarchy {

@@ -41,5 +41,7 @@ public class CreateEmployeeRequest {
 
     private String reportsToId;
 
+    private String departmentId;
+
     private String microsoftUserId;
 }

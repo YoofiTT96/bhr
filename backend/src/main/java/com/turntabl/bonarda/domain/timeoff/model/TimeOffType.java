@@ -48,6 +48,14 @@ public class TimeOffType extends AuditableEntity {
     @Builder.Default
     private Boolean isUnlimited = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attachment_requirement", nullable = false, length = 20)
+    @Builder.Default
+    private AttachmentRequirement attachmentRequirement = AttachmentRequirement.NEVER;
+
+    @Column(name = "attachment_required_after_days")
+    private Integer attachmentRequiredAfterDays;
+
     @PrePersist
     protected void ensurePublicId() {
         if (publicId == null) {

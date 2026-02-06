@@ -29,4 +29,8 @@ public class TimeOffRequestDto {
     private LocalDateTime createdAt;
     private String calendarEventId;
     private Boolean calendarSynced;
+    private String attachmentFileName;
+    private Long attachmentSize;
+    private Boolean hasAttachment;
+    private Boolean attachmentRequired;
 }

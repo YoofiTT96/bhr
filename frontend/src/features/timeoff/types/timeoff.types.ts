@@ -1,5 +1,6 @@
 export type TimeOffRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type HalfDayPeriod = 'MORNING' | 'AFTERNOON';
+export type AttachmentRequirement = 'NEVER' | 'ALWAYS' | 'CONDITIONAL';
 
 export interface TimeOffType {
   id: string;
@@ -11,6 +12,8 @@ export interface TimeOffType {
   requiresApproval: boolean;
   isActive: boolean;
   isUnlimited: boolean;
+  attachmentRequirement: AttachmentRequirement;
+  attachmentRequiredAfterDays?: number;
 }
 
 export interface TimeOffBalance {
@@ -47,6 +50,10 @@ export interface TimeOffRequest {
   createdAt: string;
   calendarEventId?: string;
   calendarSynced?: boolean;
+  attachmentFileName?: string;
+  attachmentSize?: number;
+  hasAttachment: boolean;
+  attachmentRequired: boolean;
 }
 
 export interface CreateTimeOffRequest {
@@ -66,4 +73,29 @@ export interface ReviewTimeOffRequest {
 export interface AdjustBalanceRequest {
   adjustment: number;
   reason?: string;
+}
+
+export interface CreateTimeOffTypeRequest {
+  name: string;
+  description?: string;
+  defaultDaysPerYear: number;
+  carryOverAllowed?: boolean;
+  maxCarryOverDays?: number;
+  requiresApproval?: boolean;
+  isUnlimited?: boolean;
+  attachmentRequirement?: AttachmentRequirement;
+  attachmentRequiredAfterDays?: number;
+}
+
+export interface UpdateTimeOffTypeRequest {
+  name?: string;
+  description?: string;
+  defaultDaysPerYear?: number;
+  carryOverAllowed?: boolean;
+  maxCarryOverDays?: number;
+  requiresApproval?: boolean;
+  isActive?: boolean;
+  isUnlimited?: boolean;
+  attachmentRequirement?: AttachmentRequirement;
+  attachmentRequiredAfterDays?: number;
 }

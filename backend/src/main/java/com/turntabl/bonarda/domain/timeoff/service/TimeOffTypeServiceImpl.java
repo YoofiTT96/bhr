@@ -3,6 +3,7 @@ package com.turntabl.bonarda.domain.timeoff.service;
 import com.turntabl.bonarda.domain.timeoff.dto.CreateTimeOffTypeRequest;
 import com.turntabl.bonarda.domain.timeoff.dto.TimeOffTypeDto;
 import com.turntabl.bonarda.domain.timeoff.dto.UpdateTimeOffTypeRequest;
+import com.turntabl.bonarda.domain.timeoff.model.AttachmentRequirement;
 import com.turntabl.bonarda.domain.timeoff.model.TimeOffType;
 import com.turntabl.bonarda.domain.timeoff.repository.TimeOffTypeRepository;
 import com.turntabl.bonarda.exception.BadRequestException;
@@ -28,6 +29,9 @@ public class TimeOffTypeServiceImpl implements TimeOffTypeService {
             throw new BadRequestException("Time off type with name '" + request.getName() + "' already exists");
         }
 
+        AttachmentRequirement attachmentReq = parseAttachmentRequirement(request.getAttachmentRequirement());
+        validateAttachmentConfig(attachmentReq, request.getAttachmentRequiredAfterDays());
+
         TimeOffType type = TimeOffType.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -36,6 +40,8 @@ public class TimeOffTypeServiceImpl implements TimeOffTypeService {
                 .maxCarryOverDays(request.getMaxCarryOverDays() != null ? request.getMaxCarryOverDays() : 0)
                 .requiresApproval(request.getRequiresApproval() != null ? request.getRequiresApproval() : true)
                 .isUnlimited(request.getIsUnlimited() != null ? request.getIsUnlimited() : false)
+                .attachmentRequirement(attachmentReq)
+                .attachmentRequiredAfterDays(request.getAttachmentRequiredAfterDays())
                 .build();
 
         TimeOffType saved = typeRepository.save(type);
@@ -59,6 +65,18 @@ public class TimeOffTypeServiceImpl implements TimeOffTypeService {
         if (request.getRequiresApproval() != null) type.setRequiresApproval(request.getRequiresApproval());
         if (request.getIsActive() != null) type.setIsActive(request.getIsActive());
         if (request.getIsUnlimited() != null) type.setIsUnlimited(request.getIsUnlimited());
+        if (request.getAttachmentRequirement() != null) {
+            AttachmentRequirement attachmentReq = parseAttachmentRequirement(request.getAttachmentRequirement());
+            Integer afterDays = request.getAttachmentRequiredAfterDays() != null
+                    ? request.getAttachmentRequiredAfterDays()
+                    : type.getAttachmentRequiredAfterDays();
+            validateAttachmentConfig(attachmentReq, afterDays);
+            type.setAttachmentRequirement(attachmentReq);
+            type.setAttachmentRequiredAfterDays(afterDays);
+        } else if (request.getAttachmentRequiredAfterDays() != null) {
+            validateAttachmentConfig(type.getAttachmentRequirement(), request.getAttachmentRequiredAfterDays());
+            type.setAttachmentRequiredAfterDays(request.getAttachmentRequiredAfterDays());
+        }
 
         TimeOffType updated = typeRepository.save(type);
         return toDto(updated);
@@ -109,6 +127,25 @@ public class TimeOffTypeServiceImpl implements TimeOffTypeService {
                 .requiresApproval(type.getRequiresApproval())
                 .isActive(type.getIsActive())
                 .isUnlimited(type.getIsUnlimited())
+                .attachmentRequirement(type.getAttachmentRequirement().name())
+                .attachmentRequiredAfterDays(type.getAttachmentRequiredAfterDays())
                 .build();
+    }
+
+    private AttachmentRequirement parseAttachmentRequirement(String value) {
+        if (value == null || value.isBlank()) {
+            return AttachmentRequirement.NEVER;
+        }
+        try {
+            return AttachmentRequirement.valueOf(value.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Invalid attachment requirement: " + value);
+        }
+    }
+
+    private void validateAttachmentConfig(AttachmentRequirement requirement, Integer afterDays) {
+        if (requirement == AttachmentRequirement.CONDITIONAL && (afterDays == null || afterDays < 0)) {
+            throw new BadRequestException("Conditional attachment requirement needs a valid 'attachmentRequiredAfterDays' value");
+        }
     }
 }
