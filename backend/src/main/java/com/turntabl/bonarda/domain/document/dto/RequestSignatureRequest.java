@@ -1,0 +1,16 @@
+package com.turntabl.bonarda.domain.document.dto;
+
+import jakarta.validation.constraints.NotEmpty;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.List;
+import java.util.UUID;
+
+@Getter
+@Setter
+public class RequestSignatureRequest {
+
+    @NotEmpty(message = "At least one employee must be selected")
+    private List<UUID> employeeIds;
+}

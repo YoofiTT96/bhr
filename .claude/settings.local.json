@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(mvn:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Read(//Users/josephbrown-pobee/.m2/repository/com/microsoft/**)",
+      "Bash(jar_path=\"$HOME/.m2/repository/com/microsoft/graph/microsoft-graph/6.10.0/microsoft-graph-6.10.0.jar\")",
+      "Bash(jar tf:*)",
+      "Bash(javap:*)",
+      "WebFetch(domain:turntabl.io)",
+      "Bash(git checkout:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

@@ -3,9 +3,9 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: nonnie-hr-postgres
+    container_name: bonarda-hr-postgres
     environment:
-      POSTGRES_DB: nonnie_hr
+      POSTGRES_DB: bonarda_hr
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -18,10 +18,10 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - nonnie-network
+      - bonarda-network
 
 networks:
-  nonnie-network:
+  bonarda-network:
     driver: bridge
 
 volumes:

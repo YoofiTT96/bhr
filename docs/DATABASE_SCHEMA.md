@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Nonnie HR System uses PostgreSQL 15+ as the database with Flyway for version-controlled migrations.
+BonardaHR uses PostgreSQL 15+ as the database with Flyway for version-controlled migrations.
 
 ## Core Design Principles
 
@@ -15,19 +15,23 @@ The Nonnie HR System uses PostgreSQL 15+ as the database with Flyway for version
 ## Entity Relationship Overview
 
 ```
-employees (1) ---- (N) employee_field_values
-    |                       |
-    | (self-ref)            |
-    |                       |
-    └─ reports_to       section_fields
-                            |
-                            |
-                        employee_sections
-
-employees (N) ---- (N) roles (via employee_roles)
-    |
-    |
-roles (N) ---- (N) permissions (via role_permissions)
+employees (1) ──── (N) employee_field_values
+    │                       │
+    │ (self-ref)            │
+    │                  section_fields
+    └─ reports_to           │
+                       employee_sections
+    │
+    ├── (N) ──── (N) roles (via employee_roles)
+    │                  │
+    │            roles (N) ──── (N) permissions (via role_permissions)
+    │
+    ├── (1) ──── (N) time_off_balances ──── (N) time_off_types
+    │
+    ├── (1) ──── (N) time_off_requests ──── (N) time_off_types
+    │                       │
+    │                  reviewer_id ──── employees
+    │
 ```
 
 ## Table Descriptions
@@ -37,7 +41,8 @@ roles (N) ---- (N) permissions (via role_permissions)
 Core employee information with fixed schema fields.
 
 **Columns**:
-- `id` (BIGSERIAL, PK): Unique employee identifier
+- `id` (BIGSERIAL, PK): Internal identifier (used for FKs, joins, JWT subject)
+- `public_id` (UUID, NOT NULL, UNIQUE): API-facing identifier (added in V3)
 - `first_name` (VARCHAR(100), NOT NULL): Employee first name
 - `last_name` (VARCHAR(100), NOT NULL): Employee last name
 - `email` (VARCHAR(255), UNIQUE, NOT NULL): Company email address
@@ -51,7 +56,10 @@ Core employee information with fixed schema fields.
 - `microsoft_user_id` (VARCHAR(255), UNIQUE, NULL): Azure AD user ID for SSO
 - Audit fields: `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
 
+> The `public_id` UUID is the only identifier exposed through the REST API. Internal `id` is never returned to clients. See ADR-012 for rationale.
+
 **Indexes**:
+- `idx_employees_public_id` on `public_id` (unique)
 - `idx_employees_reports_to` on `reports_to_id`
 - `idx_employees_email` on `email`
 - `idx_employees_status` on `status`
@@ -79,6 +87,7 @@ Defines configurable section categories that can be added to employee profiles.
 - `description` (TEXT, NULL): Description of what this section contains
 - `display_order` (INTEGER, NOT NULL, DEFAULT 0): Order to display sections in UI
 - `is_active` (BOOLEAN, NOT NULL, DEFAULT true): Whether section is currently active
+- `required_permission` (VARCHAR(100), NULL): Permission needed to view this section on another employee's profile (added in V2). NULL = visible to all. See ADR-014.
 - `created_at`, `updated_at`: Audit timestamps
 
 **Indexes**:
@@ -86,10 +95,12 @@ Defines configurable section categories that can be added to employee profiles.
 - `idx_employee_sections_is_active` on `is_active`
 
 **Default Data**:
-- payroll: Payroll Information
-- personal: Personal Interests
-- emergency: Emergency Contact
-- documents: Documents
+| Section | Display Name | Required Permission |
+|---------|-------------|-------------------|
+| payroll | Payroll Information | `SECTION_PAYROLL_VIEW` |
+| personal | Personal Interests | _(none — visible to all)_ |
+| emergency | Emergency Contact | `SECTION_EMERGENCY_VIEW` |
+| documents | Documents | `SECTION_DOCUMENTS_VIEW` |
 
 ---
 
@@ -327,12 +338,115 @@ SELECT * FROM employee_hierarchy ORDER BY level, last_name;
 
 ---
 
+## Time Off Tables (V4)
+
+### time_off_types
+
+Configurable leave categories. Soft-deleted via `is_active = false`.
+
+**Columns**:
+- `id` (BIGSERIAL, PK): Internal identifier
+- `public_id` (UUID, NOT NULL, UNIQUE): API-facing identifier
+- `name` (VARCHAR(100), NOT NULL): Display name (e.g., "Annual Leave")
+- `description` (TEXT, NULL): Description of the leave type
+- `default_days_per_year` (INTEGER, NOT NULL, DEFAULT 0): Default allocation for new employees
+- `carry_over_allowed` (BOOLEAN, NOT NULL, DEFAULT false): Whether unused days carry over
+- `max_carry_over_days` (INTEGER, NOT NULL, DEFAULT 0): Maximum carry-over days
+- `requires_approval` (BOOLEAN, NOT NULL, DEFAULT true): Whether requests need manager approval
+- `is_active` (BOOLEAN, NOT NULL, DEFAULT true): Soft-delete flag
+- Audit fields: `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+
+**Indexes**:
+- Partial unique index on `name` WHERE `is_active = true` (allows re-creating names after soft-delete, added in V6)
+
+**Default Data**: Annual Leave (20d), Sick Leave (10d), Maternity Leave (90d), Paternity Leave (10d), Bereavement Leave (5d), Personal Leave (3d), Unpaid Leave (0d)
+
+---
+
+### time_off_balances
+
+Per-employee, per-type, per-year allocation tracking. Uses `NUMERIC(5,1)` to support half-day precision.
+
+**Columns**:
+- `id` (BIGSERIAL, PK): Internal identifier
+- `public_id` (UUID, NOT NULL, UNIQUE): API-facing identifier
+- `employee_id` (BIGINT, NOT NULL, FK): Employee
+- `time_off_type_id` (BIGINT, NOT NULL, FK): Leave type
+- `year` (INTEGER, NOT NULL): Calendar year
+- `total_allocated` (NUMERIC(5,1), DEFAULT 0): Total days allocated
+- `used` (NUMERIC(5,1), DEFAULT 0): Days used (approved requests)
+- `pending` (NUMERIC(5,1), DEFAULT 0): Days in pending requests (denormalized for fast reads)
+- `carry_over` (NUMERIC(5,1), DEFAULT 0): Days carried from previous year
+- Audit fields: `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+
+**Constraints**:
+- `UNIQUE(employee_id, time_off_type_id, year)`
+- `CHECK(total_allocated >= 0)`, `CHECK(used >= 0)`, `CHECK(pending >= 0)`, `CHECK(carry_over >= 0)`
+- Balance integrity constraint (V6): `CHECK(used + pending <= total_allocated + carry_over)`
+
+**Computed Fields** (Application-level):
+- `remaining` = `total_allocated + carry_over - used - pending`
+
+---
+
+### time_off_requests
+
+Leave requests with approval workflow. See ADR-013 for lifecycle details.
+
+**Columns**:
+- `id` (BIGSERIAL, PK): Internal identifier
+- `public_id` (UUID, NOT NULL, UNIQUE): API-facing identifier
+- `employee_id` (BIGINT, NOT NULL, FK): Requesting employee
+- `time_off_type_id` (BIGINT, NOT NULL, FK): Leave type
+- `start_date` (DATE, NOT NULL): First day of leave
+- `end_date` (DATE, NOT NULL): Last day of leave
+- `half_day` (BOOLEAN, DEFAULT false): Whether this is a half-day request
+- `half_day_period` (VARCHAR(20), NULL): `MORNING` or `AFTERNOON` (required when `half_day = true`)
+- `business_days` (NUMERIC(5,1), NOT NULL): Calculated business days (weekdays only; half-day = 0.5)
+- `reason` (TEXT, NULL): Employee's reason for the request
+- `status` (VARCHAR(20), DEFAULT 'PENDING'): Workflow status
+- `reviewer_id` (BIGINT, NULL, FK): Employee who approved/rejected
+- `review_note` (TEXT, NULL): Reviewer's comment
+- `reviewed_at` (TIMESTAMP, NULL): When the review happened
+- Audit fields: `version`, `created_at`, `updated_at`, `created_by`, `updated_by`
+
+**Constraints**:
+- `CHECK(end_date >= start_date)`
+- `CHECK(half_day = false OR start_date = end_date)` — half-day must be a single day
+- `CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))`
+- `CHECK(half_day_period IN ('MORNING', 'AFTERNOON'))` when not null
+
+**Indexes**:
+- `idx_time_off_requests_employee` on `employee_id`
+- `idx_time_off_requests_status` on `status`
+- `idx_time_off_requests_dates` on `(start_date, end_date)`
+
+---
+
+## Time Off Permissions (V4)
+
+Added 12 permissions for time off management:
+
+| Permission | Assigned To |
+|-----------|-------------|
+| `TIME_OFF_TYPE_CREATE` | ADMIN, HR_MANAGER |
+| `TIME_OFF_TYPE_READ` | ADMIN, HR_MANAGER, MANAGER, EMPLOYEE |
+| `TIME_OFF_TYPE_UPDATE` | ADMIN, HR_MANAGER |
+| `TIME_OFF_TYPE_DELETE` | ADMIN |
+| `TIME_OFF_REQUEST_CREATE` | ADMIN, HR_MANAGER, MANAGER, EMPLOYEE |
+| `TIME_OFF_REQUEST_READ_OWN` | ADMIN, HR_MANAGER, MANAGER, EMPLOYEE |
+| `TIME_OFF_REQUEST_READ_TEAM` | ADMIN, HR_MANAGER, MANAGER |
+| `TIME_OFF_REQUEST_READ_ALL` | ADMIN, HR_MANAGER |
+| `TIME_OFF_REQUEST_APPROVE` | ADMIN, HR_MANAGER, MANAGER |
+| `TIME_OFF_BALANCE_READ_OWN` | ADMIN, HR_MANAGER, MANAGER, EMPLOYEE |
+| `TIME_OFF_BALANCE_READ_ALL` | ADMIN, HR_MANAGER |
+| `TIME_OFF_BALANCE_ADJUST` | ADMIN, HR_MANAGER |
+
+---
+
 ## Future Tables (Planned)
 
-### Time Management
-- `time_off_types`: Leave types (annual, sick, personal)
-- `time_off_balances`: Employee leave balances per year
-- `time_off_requests`: Leave request workflow
+### Time & Attendance
 - `attendance_records`: Daily attendance tracking
 - `time_entries`: Project time tracking
 
@@ -342,7 +456,7 @@ SELECT * FROM employee_hierarchy ORDER BY level, last_name;
 - `project_assignments`: Employee-project assignments
 
 ### Documents
-- `documents`: Document metadata
+- `documents`: Document metadata (references SharePoint document IDs — see ADR-010)
 - `document_signatures`: Digital signature tracking
 
 ### Communication
@@ -355,7 +469,7 @@ SELECT * FROM employee_hierarchy ORDER BY level, last_name;
 
 ### Daily Backups
 ```bash
-pg_dump nonnie_hr > backup_$(date +%Y%m%d).sql
+pg_dump bonarda_hr > backup_$(date +%Y%m%d).sql
 ```
 
 ### Point-in-Time Recovery
@@ -373,12 +487,17 @@ backend/src/main/resources/db/migration/
 **Naming Convention**:
 ```
 V{version}__{description}.sql
-
-Examples:
-V1__create_employee_tables.sql
-V2__create_timeoff_tables.sql
-V3__add_employee_profile_photo.sql
 ```
+
+**Current Migrations**:
+| Version | File | Purpose |
+|---------|------|---------|
+| V1 | `create_employee_tables.sql` | Core schema: employees, sections, fields, roles, permissions, RBAC |
+| V2 | `add_section_visibility.sql` | Section-level permissions (`required_permission` column) |
+| V3 | `add_employee_public_id.sql` | UUID public identifiers for API exposure |
+| V4 | `create_time_off_tables.sql` | Time off types, balances, requests, 12 new permissions |
+| V5 | `grant_employee_read_all_to_employee_role.sql` | Grant `EMPLOYEE_READ_ALL` to EMPLOYEE role |
+| V6 | `fix_time_off_constraints.sql` | Partial unique index on type name, balance integrity constraint |
 
 **Never modify existing migrations** - always create new ones for changes.
 
