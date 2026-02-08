@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "employee_sections")
@@ -24,8 +25,24 @@ public class EmployeeSection {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "public_id", nullable = false, updatable = false, unique = true)
+    private UUID publicId;
+
     @Column(nullable = false, unique = true, length = 100)
     private String name;
+
+    @PrePersist
+    protected void onCreate() {
+        if (publicId == null) {
+            publicId = UUID.randomUUID();
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+    }
 
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;

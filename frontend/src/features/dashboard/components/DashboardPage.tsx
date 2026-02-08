@@ -6,6 +6,7 @@ import { usePendingSignatures } from '../../documents/hooks/useDocuments';
 import { useAuth } from '../../auth/context/AuthContext';
 import CreateEventModal from './CreateEventModal';
 import EditEventModal from './EditEventModal';
+import ClockInWidget from './ClockInWidget';
 import { getEventTypeStyle } from '../constants';
 import { getMonday, formatDate, formatTime, formatDateRange, formatWeekLabel } from '../../../shared/utils/dateUtils';
 import type { CompanyEvent } from '../types/dashboard.types';
@@ -81,6 +82,9 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
+        {/* Clock In/Out Widget */}
+        <ClockInWidget />
+
         {/* Pending Signatures */}
         {pendingSignatures && pendingSignatures.length > 0 && (
           <div className="bg-white rounded-lg border border-orange-200 shadow-sm mb-6">

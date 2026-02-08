@@ -11,7 +11,7 @@ import java.util.List;
 @Builder
 public class EmployeeSectionDto {
 
-    private Long id;
+    private String id;  // publicId as string
     private String name;
     private String displayName;
     private String description;

@@ -1,6 +1,8 @@
 import { useEmployeeSectionValues, useSectionWithFields, useUpdateFieldValue } from '../hooks/useEmployeeSections';
-import type { SectionField, FieldValue } from '../types/section.types';
+import type { SectionField, FieldValue, EditableBy } from '../types/section.types';
 import { useState } from 'react';
+import { useAuth } from '../../auth/context/AuthContext';
+import { Lock, Eye } from 'lucide-react';
 
 interface ConfigurableSectionProps {
   employeeId: string;
@@ -8,9 +10,15 @@ interface ConfigurableSectionProps {
 }
 
 export default function ConfigurableSection({ employeeId, sectionName }: ConfigurableSectionProps) {
+  const { user, hasPermission } = useAuth();
   const { data: section, isLoading: loadingSection } = useSectionWithFields(sectionName);
   const { data: values, isLoading: loadingValues } = useEmployeeSectionValues(employeeId, sectionName);
   const updateFieldValue = useUpdateFieldValue();
+
+  // Determine if viewing own profile
+  const isOwnProfile = user?.employeeId === employeeId;
+  // HR/Admin can edit HR_ONLY fields
+  const canEditHrOnly = hasPermission('SECTION_UPDATE');
 
   if (loadingSection || loadingValues) {
     return <div className="text-sm text-gray-500 py-4">Loading section data...</div>;
@@ -20,19 +28,35 @@ export default function ConfigurableSection({ employeeId, sectionName }: Configu
     return <div className="text-sm text-gray-500 py-4">No fields configured for this section.</div>;
   }
 
+  // Determine if a field can be edited based on editableBy
+  const canEditField = (editableBy: EditableBy): boolean => {
+    switch (editableBy) {
+      case 'SYSTEM':
+        return false; // Never editable
+      case 'HR_ONLY':
+        return canEditHrOnly; // Only HR/Admin can edit
+      case 'EMPLOYEE':
+        return isOwnProfile; // Only the employee themselves can edit
+      default:
+        return false;
+    }
+  };
+
   return (
     <div className="space-y-4">
       {section.fields.map((field) => {
-        const fieldValue = values?.find((v) => v.sectionFieldId === field.id);
+        const fieldValue = values?.find((v) => v.fieldName === field.fieldName);
+        const editable = canEditField(field.editableBy);
         return (
           <DynamicField
             key={field.id}
             field={field}
             value={fieldValue ?? null}
+            editable={editable}
             onSave={(value) => {
               updateFieldValue.mutate({
                 employeeId,
-                fieldId: field.id,
+                fieldId: parseInt(field.id, 10), // Convert string to number for the API
                 value,
               });
             }}
@@ -46,10 +70,12 @@ export default function ConfigurableSection({ employeeId, sectionName }: Configu
 function DynamicField({
   field,
   value,
+  editable,
   onSave,
 }: {
   field: SectionField;
   value: FieldValue | null;
+  editable: boolean;
   onSave: (value: Record<string, unknown>) => void;
 }) {
   const currentValue = value?.value;
@@ -64,21 +90,47 @@ function DynamicField({
     setEditing(false);
   };
 
+  const getEditableByBadge = () => {
+    switch (field.editableBy) {
+      case 'HR_ONLY':
+        return (
+          <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+            <Eye size={10} />
+            HR Only
+          </span>
+        );
+      case 'SYSTEM':
+        return (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+            <Lock size={10} />
+            System
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
   if (!editing) {
     return (
       <div className="flex items-center justify-between py-2 border-b border-gray-50">
         <div>
-          <p className="text-xs text-gray-500">{field.fieldLabel}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-gray-500">{field.fieldLabel}</p>
+            {getEditableByBadge()}
+          </div>
           <p className="text-sm text-gray-900">
             {currentValue ? extractDisplayValue(currentValue, field.fieldType) : '—'}
           </p>
         </div>
-        <button
-          onClick={() => setEditing(true)}
-          className="text-xs text-blue-600 hover:text-blue-700"
-        >
-          Edit
-        </button>
+        {editable && (
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs text-blue-600 hover:text-blue-700"
+          >
+            Edit
+          </button>
+        )}
       </div>
     );
   }

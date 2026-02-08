@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sectionService } from '../services/sectionService';
 import { employeeService } from '../services/employeeService';
+import type {
+  CreateSectionRequest,
+  UpdateSectionRequest,
+  CreateSectionFieldRequest,
+  UpdateSectionFieldRequest,
+} from '../types/section.types';
 
 export function useSections(activeOnly = true) {
   return useQuery({
@@ -52,6 +58,71 @@ export function useUpdateFieldValue() {
       queryClient.invalidateQueries({
         queryKey: ['employee-section-values', variables.employeeId],
       });
+    },
+  });
+}
+
+// Section CRUD mutations
+export function useCreateSection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: CreateSectionRequest) => sectionService.createSection(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
+    },
+  });
+}
+
+export function useUpdateSection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: UpdateSectionRequest }) =>
+      sectionService.updateSection(id, request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
+    },
+  });
+}
+
+export function useDeleteSection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => sectionService.deleteSection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
+    },
+  });
+}
+
+// Field CRUD mutations
+export function useCreateField() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sectionId, request }: { sectionId: string; request: CreateSectionFieldRequest }) =>
+      sectionService.createField(sectionId, request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
+    },
+  });
+}
+
+export function useUpdateField() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fieldId, request }: { fieldId: string; request: UpdateSectionFieldRequest }) =>
+      sectionService.updateField(fieldId, request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
+    },
+  });
+}
+
+export function useDeleteField() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (fieldId: string) => sectionService.deleteField(fieldId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
     },
   });
 }

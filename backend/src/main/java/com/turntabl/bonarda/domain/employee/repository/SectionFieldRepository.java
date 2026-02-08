@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface SectionFieldRepository extends JpaRepository<SectionField, Long> {
@@ -20,4 +21,6 @@ public interface SectionFieldRepository extends JpaRepository<SectionField, Long
     List<SectionField> findBySectionName(@Param("sectionName") String sectionName);
 
     boolean existsBySectionIdAndFieldName(Long sectionId, String fieldName);
+
+    Optional<SectionField> findByPublicId(UUID publicId);
 }

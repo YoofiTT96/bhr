@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
           { path: '/clients/:id', element: <PermissionGuard permission="CLIENT_READ"><ClientDetail /></PermissionGuard> },
           { path: '/documents', element: <DocumentsPage /> },
           { path: '/documents/:id', element: <DocumentDetail /> },
-          { path: '/admin', element: <PermissionGuard permission="ROLE_READ"><AdminPage /></PermissionGuard> },
+          { path: '/admin', element: <PermissionGuard permission="ADMIN_ACCESS"><AdminPage /></PermissionGuard> },
         ],
       },
     ],

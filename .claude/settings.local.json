@@ -14,7 +14,9 @@
       "Bash(javap:*)",
       "WebFetch(domain:turntabl.io)",
       "Bash(git checkout:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(./mvnw test-compile:*)",
+      "Bash(./mvnw test:*)"
     ]
   }
 }

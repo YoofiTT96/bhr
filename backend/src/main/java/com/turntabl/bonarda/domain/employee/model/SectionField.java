@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 @Entity
 @Table(name = "section_fields", uniqueConstraints = {
@@ -26,6 +27,9 @@ public class SectionField {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "public_id", nullable = false, updatable = false, unique = true)
+    private UUID publicId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "section_id", nullable = false)
@@ -53,9 +57,27 @@ public class SectionField {
     @Builder.Default
     private Integer displayOrder = 0;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "editable_by", nullable = false, length = 20)
+    @Builder.Default
+    private EditableBy editableBy = EditableBy.EMPLOYEE;
+
     @Type(JsonBinaryType.class)
     @Column(name = "validation_rules", columnDefinition = "jsonb")
     private Map<String, Object> validationRules;
+
+    @PrePersist
+    protected void onCreate() {
+        if (publicId == null) {
+            publicId = UUID.randomUUID();
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+    }
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

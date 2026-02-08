@@ -1,5 +1,6 @@
 package com.turntabl.bonarda.domain.employee.dto;
 
+import com.turntabl.bonarda.domain.employee.model.EditableBy;
 import com.turntabl.bonarda.domain.employee.model.FieldType;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,12 +13,13 @@ import java.util.Map;
 @Builder
 public class SectionFieldDto {
 
-    private Long id;
+    private String id;  // publicId as string
     private String fieldName;
     private String fieldLabel;
     private FieldType fieldType;
     private Map<String, Object> fieldOptions;
     private Boolean isRequired;
     private Integer displayOrder;
+    private EditableBy editableBy;
     private Map<String, Object> validationRules;
 }

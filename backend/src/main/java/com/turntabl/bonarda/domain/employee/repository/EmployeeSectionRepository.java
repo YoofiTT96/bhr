@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface EmployeeSectionRepository extends JpaRepository<EmployeeSection, Long> {
@@ -27,4 +28,9 @@ public interface EmployeeSectionRepository extends JpaRepository<EmployeeSection
     Optional<EmployeeSection> findByNameWithFields(@Param("name") String name);
 
     boolean existsByName(String name);
+
+    Optional<EmployeeSection> findByPublicId(UUID publicId);
+
+    @Query("SELECT s FROM EmployeeSection s LEFT JOIN FETCH s.fields WHERE s.publicId = :publicId")
+    Optional<EmployeeSection> findByPublicIdWithFields(@Param("publicId") UUID publicId);
 }

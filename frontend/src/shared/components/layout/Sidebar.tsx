@@ -22,7 +22,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       : []),
     { to: '/documents', icon: FileText, label: 'Documents' },
     { to: '/blog', icon: Newspaper, label: 'Blog', disabled: true },
-    ...(hasPermission('ROLE_READ')
+    ...(hasPermission('ADMIN_ACCESS')
       ? [{ to: '/admin', icon: Shield, label: 'Admin' }]
       : []),
   ];
